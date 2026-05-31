@@ -1,48 +1,29 @@
 # AI Wiki Quiz Generator
 
-## Overview
-
-**AI Wiki Quiz Generator** is a full-stack application that allows users to generate quizzes from Wikipedia articles. Users can enter a Wikipedia URL, and the system will scrape the article, generate quiz questions using a Large Language Model (LLM), and display them in a clean, interactive frontend.  
-
-The system also maintains a **history** of past quizzes for review.
+A full-stack web app that generates interactive quizzes from any Wikipedia article using Google Gemini AI. Paste a Wikipedia URL, pick your difficulty and question count, take the quiz, and track your results over time.
 
 ---
 
 ## Features
 
-### Generate Quiz
-- Enter a Wikipedia article URL.
-- Scrapes article content using **BeautifulSoup**.
-- Generates 5–10 multiple-choice questions with:
-  - Question text
-  - 4 options (A-D)
-  - Correct answer
-  - Short explanation
-  - Difficulty level (easy, medium, hard)
-  - Suggested related Wikipedia topics
-- Stores generated data in **MySQL/PostgreSQL**.
-- Displays quiz in structured, card-based layout.
-
-### Take Quiz Mode
-- User can attempt the quiz.
-- Select answers for each question.
-- Submit to see score and correct answers.
-- Option to retry or generate a new quiz.
-
-### Quiz History
-- Table view of previously generated quizzes.
-- Click **Details** to view full quiz in a modal.
+- **Wikipedia-powered content** — paste any Wikipedia URL and the app extracts the full article text using the Wikipedia REST API with an HTML scrape fallback
+- **Customizable quiz generation** — choose difficulty (Easy / Medium / Hard) and number of questions (5–15) before generating
+- **Interactive quiz mode** — select answers for each question, submit when done, and get instant color-coded feedback (green = correct, red = wrong) with explanations
+- **Score tracking** — every attempt is saved with score, percentage, and per-question results
+- **Quiz history** — browse all previously generated quizzes in a table with difficulty badge and best score; click View to review any past attempt in a modal
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Python, FastAPI / Django
-- **Database:** MySQL / PostgreSQL
-- **Frontend:** React with Bootstrap
-- **LLM:** Gemini API via LangChain
-- **Scraping:** BeautifulSoup
-- **Other:** dotenv for environment variables
+| Layer | Technology |
+|---|---|
+| Backend | Python, FastAPI |
+| Database | PostgreSQL + SQLAlchemy |
+| LLM | Google Gemini 2.5 Flash via LangChain |
+| Scraping | Wikipedia REST API + BeautifulSoup fallback |
+| Frontend | React (Vite) + Bootstrap 5 |
+| Env config | python-dotenv |
 
 ---
 
@@ -50,148 +31,172 @@ The system also maintains a **history** of past quizzes for review.
 
 ```
 ai-quiz-generator/
-├── backend/                  # Python backend code
-│   ├── main.py               # FastAPI app
-│   ├── database.py           # Database setup
-│   ├── models.py             # SQLAlchemy / Django models
-│   ├── quiz_generator.py     # LLM quiz logic
-│   └── requirements.txt
-├── frontend/                 # React frontend
-│   ├── src/
-│   │   ├── components/       # Reusable components (QuizDisplay, Modal, etc.)
-│   │   ├── tabs/             # GenerateQuizTab, HistoryTab
-│   │   ├── services/         # API service calls
-│   │   └── index.js
-│   ├── package.json
-│   └── public/
+├── backend/
+│   ├── main.py                 # FastAPI routes
+│   ├── database.py             # SQLAlchemy models & DB connection
+│   ├── models.py               # Pydantic request/response models
+│   ├── llm_quiz_generator.py   # Gemini + LangChain quiz generation
+│   ├── scraper.py              # Wikipedia content extractor
+│   ├── migrate.py              # One-time DB migration script
+│   ├── requirements.txt
+│   └── .env                    # API keys and DB URL (not committed)
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── QuizDisplay.jsx # Interactive quiz + results view
+│       │   └── Modal.jsx
+│       ├── tabs/
+│       │   ├── GenerateQuizTab.jsx
+│       │   └── HistoryTab.jsx
+│       └── services/
+│           └── api.js          # All fetch calls to the backend
 └── README.md
 ```
 
 ---
 
-## Setup Instructions
+## Database Schema
+
+### `quizzes`
+| Column | Type | Description |
+|---|---|---|
+| id | SERIAL PK | Auto-increment ID |
+| url | VARCHAR | Wikipedia URL |
+| title | VARCHAR | Quiz title from LLM |
+| date_generated | TIMESTAMP | When the quiz was created |
+| scraped_content | TEXT | Raw article text |
+| full_quiz_data | TEXT (JSON) | Full quiz object from Gemini |
+| difficulty_level | TEXT | easy / medium / hard |
+| num_questions | INTEGER | Number of questions (5–15) |
+
+### `quiz_attempts`
+| Column | Type | Description |
+|---|---|---|
+| id | SERIAL PK | Auto-increment ID |
+| quiz_id | INTEGER FK | References quizzes.id |
+| date_attempted | TIMESTAMP | When the attempt was made |
+| score | INTEGER | Number of correct answers |
+| total | INTEGER | Total questions |
+| result_data | TEXT (JSON) | Per-question correct/wrong detail |
+
+---
+
+## Setup
+
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL running locally
+- Google Gemini API key — get one at [aistudio.google.com](https://aistudio.google.com)
 
 ### Backend
 
-1. Create a virtual environment:
-
 ```bash
-python -m venv venv
+# 1. Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # Linux / Mac
+
+# 2. Install dependencies
+pip install -r backend/requirements.txt
+
+# 3. Create backend/.env
+GEMINI_API_KEY=your_gemini_api_key_here
+DATABASE_URL=postgresql+psycopg2://postgres:yourpassword@localhost:5432/ai_quiz_db
+
+# 4. Create the database in PostgreSQL
+# (run in psql or pgAdmin)
+CREATE DATABASE ai_quiz_db;
+
+# 5. Run migrations (creates tables / adds new columns)
+python backend/migrate.py
+
+# 6. Start the backend
+uvicorn backend.main:app --reload --port 8000
 ```
-
-2. Activate the environment:
-
-- Windows: `venv\Scripts\activate`
-- Linux/Mac: `source venv/bin/activate`
-
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-4. Set environment variables in `.env`:
-
-```
-GEMINI_API_KEY=<your_gemini_api_key>
-DATABASE_URL=<your_db_url>
-```
-
-5. Run the backend:
-
-```bash
-uvicorn main:app --reload
-```
-
----
 
 ### Frontend
 
-1. Navigate to frontend:
-
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-
-```bash
 npm install
-```
-
-3. Start the frontend:
-
-```bash
 npm run dev
 ```
 
-4. Open in browser at: `http://localhost:5173`
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## API Endpoints
+## API Reference
 
-### Generate Quiz
+### `POST /generate_quiz`
+Generate a quiz from a Wikipedia article.
 
-- **POST** `/genrate_quiz`
-- **Body:**
+**Request body:**
 ```json
 {
-  "url": "https://en.wikipedia.org/wiki/Alan_Turing"
-}
-```
-- **Response:**
-```json
-{
-  "id": 1,
-  "url": "https://en.wikipedia.org/wiki/Alan_Turing",
-  "title": "Alan Turing",
-  "summary": "...",
-  "quiz": [...],
-  "related_topics": ["Cryptography", "Computer Science"]
+  "url": "https://en.wikipedia.org/wiki/Narendra_Modi",
+  "difficulty": "medium",
+  "num_questions": 10
 }
 ```
 
-### Fetch Quiz History
+**Response:**
+```json
+{
+  "message": "Quiz generated successfully",
+  "quiz_id": 1,
+  "quiz": { "title": "...", "questions": [...] },
+  "difficulty_level": "medium"
+}
+```
 
-- **GET** `/history`
-- Returns all previously generated quizzes.
+---
 
-- **GET** `/quiz/{quiz_id}`
-- Returns full quiz data for a specific ID.
+### `POST /submit_quiz`
+Submit answers and get scored results.
+
+**Request body:**
+```json
+{
+  "quiz_id": 1,
+  "answers": { "0": "A", "1": "C", "2": "B" }
+}
+```
+
+**Response:**
+```json
+{
+  "attempt_id": 1,
+  "score": 8,
+  "total": 10,
+  "percentage": 80.0,
+  "results": [...]
+}
+```
+
+---
+
+### `GET /history`
+Returns all quizzes with latest attempt score.
+
+### `GET /quiz/{quiz_id}`
+Returns full quiz data for a specific quiz.
+
+### `GET /quiz/{quiz_id}/attempts`
+Returns all attempts for a quiz with per-question results.
 
 ---
 
 ## Notes
 
-- Only HTML scraping is used; Wikipedia API is **not used**.
-- Duplicate URLs are cached to prevent repeated API calls.
-- Quiz difficulty and related topics are generated using **LangChain prompt templates**.
-
----
-
-## Optional / Bonus Features
-
-- Take Quiz Mode with score calculation
-- Retry quiz / generate new quiz without page reload
-- Section-wise question grouping in UI
-- Display related topics and explanation after submission
-
----
-
-## Screenshots
-
-1. **Generate Quiz Page**  
-![Generate Quiz](screenshots/generate_quiz.png)
-
-2. **Quiz History**  
-![History](screenshots/history.png)
-
-3. **Quiz Details Modal**  
-![Details](screenshots/details_modal.png)
+- Wikipedia URLs must be in the format `https://en.wikipedia.org/wiki/Article_Name`
+- The scraper uses the Wikipedia REST API (`/api/rest_v1/page/mobile-sections`) as the primary method, which reliably handles all pages including those with JS-rendered content
+- `migrate.py` is safe to re-run — it uses `IF NOT EXISTS` checks so it won't break existing data
 
 ---
 
 ## License
 
-MIT L
+MIT

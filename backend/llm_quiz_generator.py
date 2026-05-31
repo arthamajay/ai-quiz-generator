@@ -7,37 +7,39 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def generate_quiz_from_text(article_text: str):
-    # Initialize Pydantic output parser
+
+def generate_quiz_from_text(article_text: str, difficulty: str = "medium", num_questions: int = 5) -> QuizOutput:
     parser = PydanticOutputParser(pydantic_object=QuizOutput)
 
-    # Initialize Google Gemini model
     model = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         api_key=os.getenv("GEMINI_API_KEY")
     )
 
-    # Define the prompt template
     prompt = PromptTemplate(
         template=(
             "You are an AI quiz generator. Given the following Wikipedia article text, generate a quiz.\n\n"
             "Requirements:\n"
-            "1. Create 5-10 questions.\n"
-            "2. Each question must have 4 options labeled A, B, C, D.\n"
-            "3. Indicate the correct option explicitly in a field called 'answer'.\n"
-            "4. Provide a brief explanation for the answer in 'explanation'.\n"
-            "5. Assign a difficulty: 'easy', 'medium', or 'hard'.\n"
-            "6. Suggest 2-3 related Wikipedia topics in 'related_topics'.\n\n"
+            "1. Create exactly {num_questions} questions — no more, no less.\n"
+            "2. The difficulty level of ALL questions must be '{difficulty}' "
+            "(easy = basic recall, medium = understanding, hard = analysis/application).\n"
+            "3. Each question must have exactly 4 options labeled A, B, C, D.\n"
+            "4. Indicate the correct option explicitly in the 'answer' field (e.g. 'A').\n"
+            "5. Provide a brief explanation for the answer in the 'explanation' field.\n"
+            "6. Set 'difficulty_level' in the output to '{difficulty}'.\n"
+            "7. Suggest 2-3 related Wikipedia topics in 'related_topics'.\n\n"
             "Return the quiz as strict JSON following this schema:\n"
             "{format_instructions}\n\n"
             "Wikipedia article text:\n{article}"
         ),
-        input_variables=["article"],
+        input_variables=["article", "difficulty", "num_questions"],
         partial_variables={"format_instructions": parser.get_format_instructions()}
     )
 
-    # Create the chain: prompt -> model -> parser
     chain = prompt | model | parser
 
-    # Invoke the chain with the article text
-    return chain.invoke({"article": article_text})
+    return chain.invoke({
+        "article": article_text,
+        "difficulty": difficulty,
+        "num_questions": num_questions
+    })
