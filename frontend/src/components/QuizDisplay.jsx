@@ -15,7 +15,7 @@ export default function QuizDisplay({ quiz }) {
             <strong>Q{idx + 1}: {q.question}</strong>
             <ul className="list-group">
               {q.options.map((opt, i) => (
-                <li key={i} className="list-group-item">{(1 + i)}. {opt}</li>
+                <li key={i} className="list-group-item">{opt}</li>
               ))}
             </ul>
             <p><strong>Answer:</strong> {q.answer}</p>

@@ -26,7 +26,7 @@ def extract_wikipedia_content(url: str) -> str:
         soup = BeautifulSoup(response.text, "html.parser")
 
         # Step 4: Extract main content area (Wikipedia uses this ID)
-        content_div = soup.find("div", {"id": "mw-content-text"})
+        content_div = soup.find("div", class_="mw-parser-output") 
 
         if not content_div:
             return "No readable content found."
@@ -38,7 +38,7 @@ def extract_wikipedia_content(url: str) -> str:
         # Step 6: Clean up spacing and return clean text
         clean_text = " ".join(text_content.split())
 
-        return clean_text
+        return clean_text[:15000]
 
     except requests.exceptions.RequestException as req_err:
         return f"Error fetching content: {req_err}"
